@@ -9,6 +9,7 @@ from torchvision.transforms import RandomCrop, RandomRotation
 import torchvision.transforms.functional as F
 from skimage.measure import block_reduce
 from scipy import interpolate
+from scipy.ndimage import zoom
 
 ROTATION_EXPAND = False
 ROTATION_CENTER = None  # image center
@@ -35,60 +36,25 @@ def downsample(image, scaling_factor):
     return torch.from_numpy(image).to(device) if is_tensor else image
 
 
-def bicubic_with_mask(source, mask, scaling_factor):
-    source_size = source.shape[0]
-    H, W = source.shape[0] * scaling_factor, source.shape[1] * scaling_factor
-
-    source_r = source.flatten()
-    mask_r = mask.flatten()
-
-    x = np.arange((scaling_factor - 1) / 2, H, scaling_factor)  # (0,source.shape[0])
-    y = np.arange((scaling_factor - 1) / 2, H, scaling_factor)  # (0,source.shape[1])
-
-    x_g, y_g = np.meshgrid(x, y)  # indexing="ij"
-    x_g_r = x_g.flatten()
-    y_g_r = y_g.flatten()
-
-    source_r = source_r[mask_r == 1]
-    x_g_r = x_g_r[mask_r == 1]
-    y_g_r = y_g_r[mask_r == 1]
-    xy_g_r = np.concatenate([x_g_r[:, None], y_g_r[:, None]], axis=1)
-
-    x_HR = np.linspace(0, W, endpoint=False, num=W)
-    y_HR = np.linspace(0, H, endpoint=False, num=H)
-
-    x_HR_g, y_HR_g = np.meshgrid(x_HR, y_HR)
-    x_HR_g, y_HR_g = x_HR_g.flatten(), y_HR_g.flatten()
-    xy_HR_g_r = np.concatenate([x_HR_g[:, None], y_HR_g[:, None]], axis=1)
-
-    depth_HR = interpolate.griddata(xy_g_r, source_r, xy_HR_g_r, method="cubic")
-    depth_HR_nearest = interpolate.griddata(xy_g_r, source_r, xy_HR_g_r, method="nearest")
-    depth_HR[np.isnan(depth_HR)] = depth_HR_nearest[np.isnan(depth_HR)]
-    depth_HR = depth_HR.reshape(source_size * scaling_factor, -1)
-
-    return depth_HR
-
-
-def random_horizontal_flip(images, p=0.5):
+def random_horizontal_flip(image, p=0.5):
     if random.random() < p:
-        return [image.flip(-1) for image in images]
-    return images
+        return image.flip(-1)
+    return image
 
 
-def random_rotate(images, max_rotation_angle, interpolation, crop_valid=False):
+def random_rotate(image, max_rotation_angle, interpolation, crop_valid=False):
     angle = RandomRotation.get_params([-max_rotation_angle, max_rotation_angle])
     if crop_valid:
-        rotated = [F.rotate(image, angle, interpolation, True, ROTATION_CENTER, ROTATION_FILL) for image in images]
-        crop_params = np.floor(np.asarray(rotated[0].shape[1:3]) - 2. *
-                      (np.sin(np.abs(angle * np.pi / 180.)) * np.asarray(images[0].shape[1:3][::-1]))).astype(int)
-        return [F.center_crop(image, crop_params) for image in rotated]
+        rotated = F.rotate(image, angle, interpolation, True, ROTATION_CENTER, ROTATION_FILL)
+        crop_params = np.floor(np.asarray(rotated.shape[1:3]) - 2. *(np.sin(np.abs(angle * np.pi / 180.)) * np.asarray(image.shape[1:3][::-1]))).astype(int)
+        return F.center_crop(image, crop_params)
     else:
-        return [F.rotate(image, angle, interpolation, ROTATION_EXPAND, ROTATION_CENTER, ROTATION_FILL) for image in images]
+        return F.rotate(image, angle, interpolation, ROTATION_EXPAND, ROTATION_CENTER, ROTATION_FILL)
 
 
-def random_crop(images, crop_size):
-    crop_params = RandomCrop.get_params(images[0], crop_size)
-    return [F.crop(image, *crop_params) for image in images]
+def random_crop(image, crop_size):
+    crop_params = RandomCrop.get_params(image, crop_size)
+    return F.crop(image, *crop_params)
 
 
 # Following contents were adapted from https://www.programmersought.com/article/2506939342/.

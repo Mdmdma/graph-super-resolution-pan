@@ -1,34 +1,38 @@
 from pathlib import Path
-
+import argparse
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import InterpolationMode, Resize
+import torch.nn.functional as F
+import os
+import cv2
+import gc
+import matplotlib.pyplot as plt
 
-from .utils import downsample, bicubic_with_mask, random_crop, random_rotate, random_horizontal_flip
+from .utils import downsample, random_crop, random_rotate, random_horizontal_flip
 
-DIML_BASE_SIZE = (756, 1344)
+Pan_BASE_SIZE = (1000, 1000)
 
 
-class DIMLDataset(Dataset):
+class PanDataset(Dataset):
 
     def __init__(
             self,
             data_dir: str,
             resolution='HR',
             scale=1.0,
-            crop_size=(128, 128),
+            crop_size=(256, 256),
             do_horizontal_flip=True,
             max_rotation_angle: int = 15,
             scale_interpolation=InterpolationMode.BILINEAR,
             rotation_interpolation=InterpolationMode.BILINEAR,
             image_transform=None,
-            depth_transform=None,
             in_memory=True,
             split='train',
             crop_valid=False,
             crop_deterministic=False,
-            scaling=8
+            scaling=8,
     ):
         self.scale = scale
         self.crop_size = crop_size
@@ -37,7 +41,6 @@ class DIMLDataset(Dataset):
         self.scale_interpolation = scale_interpolation
         self.rotation_interpolation = rotation_interpolation
         self.image_transform = image_transform
-        self.depth_transform = depth_transform
         self.crop_valid = crop_valid
         self.crop_deterministic = crop_deterministic
         self.scaling = scaling
@@ -51,11 +54,11 @@ class DIMLDataset(Dataset):
 
         mmap_mode = None if in_memory else 'c'
 
-        self.images = np.load(str(data_dir / f'npy/images_{split}_{resolution}.npy'), mmap_mode)
-        self.depth_maps = np.load(str(data_dir / f'npy/depth_{split}_{resolution}.npy'), mmap_mode)
-        assert len(self.images) == len(self.depth_maps)
+        # Select one of the lines below to load the images in bulk or one by one
+        #self.images = [os.path.join(data_dir, split, f) for f in os.listdir(os.path.join(data_dir, split)) if f.endswith('.tif')]
+        self.images = np.load(str(data_dir / f'npy/images_{split}.npy'), mmap_mode)
 
-        self.H, self.W = int(DIML_BASE_SIZE[0] * self.scale), int(DIML_BASE_SIZE[1] * self.scale)
+        self.H, self.W = int(Pan_BASE_SIZE[0] * self.scale), int(Pan_BASE_SIZE[1] * self.scale)
 
         if self.crop_valid:
             if self.max_rotation_angle > 45:
@@ -81,50 +84,46 @@ class DIMLDataset(Dataset):
             im_index = index
 
         image = torch.from_numpy(self.images[im_index].astype('float32')) / 255.
-        depth_map = torch.from_numpy(self.depth_maps[im_index].astype('float32')).unsqueeze(0)
+
         resize = Resize((self.H, self.W), self.scale_interpolation)
-        image, depth_map = resize(image), resize(depth_map)
+        image = resize(image)
 
         if self.do_horizontal_flip and not self.crop_deterministic:
-            image, depth_map = random_horizontal_flip((image, depth_map))
+            image = random_horizontal_flip(image)
 
         if self.max_rotation_angle > 0  and not self.crop_deterministic:
-            image, depth_map = random_rotate((image, depth_map), self.max_rotation_angle, self.rotation_interpolation,
-                                             crop_valid=self.crop_valid)
-            # passing fill=np.nan to rotate sets all pixels to nan, so set it here explicitly
-            depth_map[depth_map == 0.] = np.nan
+            image = random_rotate(image, self.max_rotation_angle, self.rotation_interpolation,
+                    crop_valid=self.crop_valid)
 
         if self.crop_deterministic:
             crop_index = index % (num_crops_h * num_crops_w)
             crop_index_h, crop_index_w = crop_index // num_crops_w, crop_index % num_crops_w
             slice_h = slice(crop_index_h * self.crop_size[0], (crop_index_h + 1) * self.crop_size[0])
             slice_w = slice(crop_index_w * self.crop_size[1], (crop_index_w + 1) * self.crop_size[1])
-            image, depth_map = image[:, slice_h, slice_w], depth_map[:, slice_h, slice_w]
+            image = image[:, slice_h, slice_w]
         else:
-            image, depth_map = random_crop((image, depth_map), self.crop_size)
+            image = random_crop(image, self.crop_size)
 
-        # apply user transforms
         if self.image_transform is not None:
             image = self.image_transform(image)
-        if self.depth_transform is not None:
-            depth_map = self.depth_transform(depth_map)
 
-        source = downsample(depth_map.unsqueeze(0), self.scaling).squeeze().unsqueeze(0)
+        bw_image = torch.mean(image, 0, keepdim=True)
+        source = downsample(image.unsqueeze(0), self.scaling).squeeze()
 
-        mask_hr = (~torch.isnan(depth_map)).float()
+        mask_hr = (~torch.isnan(image)).float()
         mask_lr = (~torch.isnan(source)).float()
 
-        depth_map[mask_hr == 0.] = 0.
         source[mask_lr == 0.] = 0.
 
-        y_bicubic = torch.from_numpy(
-            bicubic_with_mask(source.squeeze().numpy(), mask_lr.squeeze().numpy(), self.scaling)).float()
-        y_bicubic = y_bicubic.reshape((1, self.crop_size[0], self.crop_size[1]))
+        y_bicubic = F.interpolate(source.unsqueeze(0), scale_factor=self.scaling, mode='bicubic', align_corners=False).float()
+        y_bicubic = y_bicubic.reshape((3, self.crop_size[0], self.crop_size[1]))
 
-        return {'guide': image, 'y': depth_map, 'source': source, 'mask_hr': mask_hr, 'mask_lr': mask_lr,
-                'y_bicubic': y_bicubic}
+        
+        
+        return {'guide': bw_image, 'y': image, 'source': source, 'mask_hr': mask_hr, 'mask_lr': mask_lr, 
+            'y_bicubic': y_bicubic}
 
     def __len__(self):
         if self.crop_deterministic:
-            return len(self.depth_maps) * (self.H // self.crop_size[0]) * (self.W // self.crop_size[1])
-        return len(self.depth_maps)
+            return len(self.images) * (self.H // self.crop_size[0]) * (self.W // self.crop_size[1])
+        return len(self.images)
