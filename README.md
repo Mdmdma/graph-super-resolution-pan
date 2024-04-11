@@ -1,4 +1,3 @@
-#TODO Remove this banner
 # Learning Graph Regularisation for Guided Super-Resolution
 
 This is the official implementation of the paper: 

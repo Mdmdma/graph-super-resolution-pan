@@ -1,0 +1,25 @@
+name: graph-sr
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - pip
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit
+  - cupy
+  - h5py
+  - ruamel.yaml
+  - scikit-image
+  - scipy
+  - opencv-python
+  - wandb
+  - pip:
+    - setuptools
+    - configargparse
+    - segmentation-models-pytorch
+    - tqdm
+    - tensorboard

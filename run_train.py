@@ -11,12 +11,15 @@ from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from torchvision.transforms import Normalize
 from tqdm import tqdm
+import wandb
 
 from arguments import train_parser
 from model import GraphSuperResolutionNet
-from data import MiddleburyDataset, NYUv2Dataset, DIMLDataset
+from data import PanDataset
 from utils import new_log, to_cuda, seed_all
 
+# Sample use from the comandline:
+# python run_train.py --dataset pan --data-dir /scratch2/merler/code/data --save-dir /scratch2/merler/ --wandb --subset schweiz_random_200
 
 class Trainer:
 
@@ -151,7 +154,7 @@ class Trainer:
                 sample = to_cuda(sample)
 
                 output = self.model(sample)
-
+                                
                 loss, loss_dict = self.model.get_loss(output, sample, kind=self.args.loss)
 
                 for key in loss_dict:
@@ -161,6 +164,8 @@ class Trainer:
 
             if self.use_wandb:
                 wandb.log({k + '/val': v for k, v in self.val_stats.items()}, self.iter)
+                log_images = [wandb.Image(im.permute(1, 2, 0).cpu().numpy()) for im in [sample.get('guide')[0], sample.get('source')[0], sample.get('y')[0], output.get('y_pred')[0]]]
+                wandb.log({'Guide, source, target, output': log_images}, self.iter)
             else:
                 for key in self.val_stats:
                     self.writer.add_scalar('val/' + key, self.val_stats[key], self.epoch)
@@ -178,25 +183,15 @@ class Trainer:
             'max_rotation_angle': args.max_rotation,
             'do_horizontal_flip': not args.no_flip,
             'crop_valid': True,
-            'image_transform': Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            # 'image_transform': Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             'scaling': args.scaling
         }
 
         phases = ('train', 'val')
-        if args.dataset == 'Middlebury':
-            depth_transform = Normalize([2296.78], [1122.7])
-            datasets = {phase: MiddleburyDataset(os.path.join(args.data_dir, 'Middlebury'), **data_args, split=phase,
-                        depth_transform=depth_transform, crop_deterministic=phase == 'val') for phase in phases}
+        
+        if args.dataset == 'pan':
+            datasets = {phase: PanDataset(os.path.join(args.data_dir, 'pan10/images_processed/', args.subset), **data_args, split=phase) for phase in phases}
 
-        elif args.dataset == 'DIML':
-            depth_transform = Normalize([2749.64], [1154.29])
-            datasets = {phase: DIMLDataset(os.path.join(args.data_dir, 'DIML'), **data_args, split=phase,
-                        depth_transform=depth_transform) for phase in phases}
-
-        elif args.dataset == 'NYUv2':
-            depth_transform = Normalize([2796.32], [1386.05])
-            datasets = {phase: NYUv2Dataset(os.path.join(args.data_dir, 'NYU Depth v2'), **data_args, split=phase,
-                        depth_transform=depth_transform) for phase in phases}
         else:
             raise NotImplementedError(f'Dataset {args.dataset}')
 
@@ -232,7 +227,6 @@ if __name__ == '__main__':
 
     if args.wandb:
         import wandb
-
     trainer = Trainer(args)
 
     since = time.time()

@@ -10,9 +10,11 @@ from tqdm import tqdm
 
 from arguments import eval_parser
 from model import GraphSuperResolutionNet
-from data import MiddleburyDataset, NYUv2Dataset, DIMLDataset
+from data import PanDataset
 from utils import to_cuda
+from pan_additions.naive_upsampling import visualize_tensor, save_tensor_as_image
 
+# Sample use python run_eval.py --checkpoint /scratch2/merler/pan/experiment_23/best_model.pth --dataset pan --data-dir /scratch2/merler/code/data --subset schweiz_random_200
 
 class Evaluator:
 
@@ -35,6 +37,11 @@ class Evaluator:
 
             output = self.model(sample)
 
+            picture = output['y_pred']
+            # visualize_tensor(picture, title='model_upsampling')
+            # save_tensor_as_image(picture, 'model_upsampling')
+
+
             _, loss_dict = self.model.get_loss(output, sample)
 
             for key in loss_dict:
@@ -51,22 +58,12 @@ class Evaluator:
             'do_horizontal_flip': False,
             'crop_valid': True,
             'crop_deterministic': True,
-            'image_transform': Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            #'image_transform': Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             'scaling': args.scaling
         }
 
-        if args.dataset == 'DIML':
-            depth_transform = Normalize([2749.64], [1154.29])
-            dataset = DIMLDataset(os.path.join(args.data_dir, 'DIML'), **data_args, split='test',
-                                  depth_transform=depth_transform)
-        elif args.dataset == 'Middlebury':
-            depth_transform = Normalize([2296.78], [1122.7])
-            dataset = MiddleburyDataset(os.path.join(args.data_dir, 'Middlebury'), **data_args, split='test',
-                                        depth_transform=depth_transform)
-        elif args.dataset == 'NYUv2':
-            depth_transform = Normalize([2796.32], [1386.05])
-            dataset = NYUv2Dataset(os.path.join(args.data_dir, 'NYU Depth v2'), **data_args, split='test',
-                                   depth_transform=depth_transform)
+        if args.dataset == 'pan':
+            dataset = PanDataset(os.path.join(args.data_dir, 'pan10/images_processed/', args.subset), **data_args, split='test')
         else:
             raise NotImplementedError(f'Dataset {args.dataset}')
 
@@ -92,11 +89,6 @@ if __name__ == '__main__':
     since = time.time()
     stats = evaluator.evaluate()
     time_elapsed = time.time() - since
-
-    # de-standardize losses and convert to cm (cm^2, respectively)
-    std = evaluator.dataloader.dataset.depth_transform.std[0]
-    stats['l1_loss'] = 0.1 * std * stats['l1_loss']
-    stats['mse_loss'] = 0.01 * std**2 * stats['mse_loss']
 
     print('Evaluation completed in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print(stats)
