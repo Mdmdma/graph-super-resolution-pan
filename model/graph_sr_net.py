@@ -4,12 +4,11 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
+from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimensionlessSynthesis
 
-from .functional import create_fixed_cupy_sparse_matrices, GraphQuadraticSolver
-from losses import l1_loss_func, mse_loss_func
 
 INPUT_DIM = 4
-FEATURE_DIM = 64
+FEATURE_DIM = 3
 
 
 def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
@@ -71,38 +70,59 @@ class GraphSuperResolutionNet(nn.Module):
         else:
             raise NotImplementedError(f'Feature extractor {feature_extractor}')
 
+        # 
         self.log_lambda = nn.Parameter(torch.tensor([log(lambda_init)]))
-        self.log_mu = nn.Parameter(torch.tensor([log(mu_init)]))
-        self.mx_dict = create_fixed_cupy_sparse_matrices(crop_size, crop_size, scaling)
+        # self.log_mu = nn.Parameter(torch.tensor([log(mu_init)]))
+        # self.mx_dict = create_fixed_cupy_sparse_matrices(crop_size, crop_size, scaling)
 
     def forward(self, sample):
         guide, source, mask_lr = sample['guide'], sample['source'], sample['mask_lr']
 
         if self.feature_extractor is None:
-            pixel_features = torch.cat([guide, sample['y_bicubic']], dim=1)
+            pixel_features = torch.cat([guide, sample['y_bicubic']], dim=1) 
         else:
-            pixel_features = self.feature_extractor(torch.cat([guide, sample['y_bicubic']], dim=1))
+            pixel_features = self.feature_extractor(torch.cat([guide, sample['y_bicubic']], dim=1)) 
 
-        mu, lambda_ = torch.exp(self.log_mu), torch.exp(self.log_lambda)
-        neighbor_affinity = get_neighbor_affinity_no_border(pixel_features, mu, lambda_)
+        # mu, lambda_ = torch.exp(self.log_mu), torch.exp(self.log_lambda)
+        # neighbor_affinity = get_neighbor_affinity_no_border(pixel_features, mu, lambda_)
 
-        y_pred = GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict, mask_lr)
-
-        return {'y_pred': y_pred, 'neighbor_affinity': neighbor_affinity}
-
+        y_pred = pixel_features #  GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict, mask_lr)
+        return {'y_pred': y_pred}
+    
     def get_loss(self, output, sample, kind='l1'):
         y_pred = output['y_pred']
-        y, mask_hr, mask_lr = (sample[k] for k in ('y', 'mask_hr', 'mask_lr'))
+        '''
+        def crop_centerr(img, cropx, cropy):
+            _, _, h, w = img.size()
+            startx = w // 2 - (cropx // 2)
+            starty = h // 2 - (cropy // 2)
+            return img[:, :, starty:starty + cropy, startx:startx + cropx]'''
 
-        l1_loss = l1_loss_func(y_pred, y, mask_hr)
-        mse_loss = mse_loss_func(y_pred, y, mask_hr)
+        y = sample['y']
+        lr = sample['source']
+        scaling_factor = y.shape[-1] // lr.shape[-1]
+        # crop_size = 150
+        # y_pred = crop_centerr(y_pred, crop_size, crop_size)
+        # y = crop_centerr(y, crop_size, crop_size)
+
+        l1_loss = F.l1_loss(y_pred, y)
+        mse_loss = F.mse_loss(y_pred, y)
+        loss = l1_loss if kind == 'l1' else mse_loss
+        sdi = SpectralDistortionIndex()
+        sdi(y_pred, y)
+        ergas = ErrorRelativeGlobalDimensionlessSynthesis(scaling_factor)
+        ergas(y_pred, y)
+        psnr = 10 * torch.log10(1 / mse_loss)
         loss = l1_loss if kind == 'l1' else mse_loss
 
         return loss, {
             'l1_loss': l1_loss.detach().item(),
             'mse_loss': mse_loss.detach().item(),
-            'mu': torch.exp(self.log_mu).detach().item(),
-            'lambda': torch.exp(self.log_lambda).detach().item(),
+            'sdi': sdi.compute().detach().item(),
+            'ergas': ergas.compute().detach().item(),
+            'psnr': psnr.detach().item(),
+            #'mu': torch.exp(self.log_mu).detach().item(),
+            #'lambda': torch.exp(self.log_lambda).detach().item(),
             'optimization_loss': loss.detach().item(),
-            'average_link': torch.mean(output['neighbor_affinity'][:, 0:4].detach()).item()
+            #'average_link': torch.mean(output['neighbor_affinity'][:, 0:4].detach()).item()
         }
