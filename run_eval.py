@@ -2,6 +2,7 @@ import os
 import argparse
 from collections import defaultdict
 import time
+import csv
 
 import torch
 from torchvision.transforms import Normalize
@@ -92,3 +93,33 @@ if __name__ == '__main__':
 
     print('Evaluation completed in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print(stats)
+
+    # Writes the resluts in a csv file 
+    output_dir = args.data_output_dir
+    my_dict = stats
+    scaling_factor = args.scaling
+    checkpoint = args.checkpoint
+    subset = args.subset
+
+    # Create the 'data' directory if it doesn't exist
+    if not os.path.exists('data'):
+        os.makedirs('data')
+
+    # Construct the path to the CSV file
+    csv_file_path = os.path.join('/scratch2/merler/code/data/pan10/evaluation_results', 'results_eval.csv')
+
+    # Open the CSV file in append mode
+    with open(csv_file_path, 'a', newline='') as csvfile:
+        fieldnames = list(my_dict.keys()) + ['scaling_factor', 'checkpoint', 'subset']  # Define the field names
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        # Write the header row if the file is empty
+        if os.path.getsize(csv_file_path) == 0:
+            writer.writeheader()
+
+        # Write a new row with dictionary values and additional arguments
+        row_dict = my_dict.copy()
+        row_dict['scaling_factor'] = scaling_factor
+        row_dict['checkpoint'] = checkpoint
+        row_dict['subset'] = subset
+        writer.writerow(row_dict)

@@ -2,6 +2,7 @@ import os
 import argparse
 from collections import defaultdict
 import time
+import csv
 
 import torch
 from torchvision.transforms import Normalize
@@ -12,9 +13,10 @@ from model import GraphSuperResolutionNet
 from data import PanDataset
 from utils import to_cuda
 
+
 from pan_additions.naive_upsampling import pansharpen_pixel_average, scale_mean_values, bicubic_upsample, visualize_tensor, save_tensor_as_image
 
-# Sample use python benchmark.py --dataset pan --data-dir /scratch2/merler/code/data --subset test
+# Sample use python benchmark.py --dataset pan --data-dir /scratch2/merler/code/data --subset test --upsampler pansharpen_pixel_average --scaling 4
 class Evaluator:
 
     def __init__(self, args: argparse.Namespace):
@@ -35,11 +37,17 @@ class Evaluator:
             sample = to_cuda(sample)
 
             # choose pansharpening method to use
-            
-            # output = pansharpen_pixel_average(sample)
-            # output = scale_mean_values(sample)
-            output = bicubic_upsample(sample)
-            # output = gram_schmidt(sample)
+
+            if self.args.upsampler == 'pansharpen_pixel_average':
+                output = pansharpen_pixel_average(sample)
+            elif self.args.upsampler == 'scale_mean_values':
+                output = scale_mean_values(sample)
+            elif self.args.upsampler == 'bicubic_upsample':
+                output = bicubic_upsample(sample)
+            else: 
+                output = sample['y']
+                print('evaluater not using any upsampling method')
+                #raise ValueError(f'Upsampler {self.args.upsampler} not recognized')
 
             # visualize the output
             # picture = output['y_pred']
@@ -86,3 +94,33 @@ if __name__ == '__main__':
 
     print('Evaluation completed in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print(stats)
+    output_dir = args.data_output_dir
+
+    print(type(stats))
+    my_dict = stats
+    arg1 = args.scaling
+    arg2 = args.upsampler
+    arg3 = args.subset
+
+    # Create the 'data' directory if it doesn't exist
+    if not os.path.exists('data'):
+        os.makedirs('data')
+
+    # Construct the path to the CSV file
+    csv_file_path = os.path.join('/scratch2/merler/code/data/pan10/evaluation_results', 'results_benchmark.csv')
+
+    # Open the CSV file in append mode
+    with open(csv_file_path, 'a', newline='') as csvfile:
+        fieldnames = list(my_dict.keys()) + ['arg1', 'arg2', 'arg3']  # Define the field names
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        # Write the header row if the file is empty
+        if os.path.getsize(csv_file_path) == 0:
+            writer.writeheader()
+
+        # Write a new row with dictionary values and additional arguments
+        row_dict = my_dict.copy()
+        row_dict['arg1'] = arg1
+        row_dict['arg2'] = arg2
+        row_dict['arg3'] = arg3
+        writer.writerow(row_dict)

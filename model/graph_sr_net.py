@@ -4,12 +4,12 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
-from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimensionlessSynthesis
+from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimensionlessSynthesis , SpectralAngleMapper
 
 
 INPUT_DIM = 4
 FEATURE_DIM = 3
-
+TEST = True
 
 def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
     B, M, H, W = feature_map.shape
@@ -91,36 +91,37 @@ class GraphSuperResolutionNet(nn.Module):
     
     def get_loss(self, output, sample, kind='l1'):
         y_pred = output['y_pred']
-        '''
-        def crop_centerr(img, cropx, cropy):
-            _, _, h, w = img.size()
-            startx = w // 2 - (cropx // 2)
-            starty = h // 2 - (cropy // 2)
-            return img[:, :, starty:starty + cropy, startx:startx + cropx]'''
-
         y = sample['y']
         lr = sample['source']
         scaling_factor = y.shape[-1] // lr.shape[-1]
-        # crop_size = 150
-        # y_pred = crop_centerr(y_pred, crop_size, crop_size)
-        # y = crop_centerr(y, crop_size, crop_size)
-
         l1_loss = F.l1_loss(y_pred, y)
         mse_loss = F.mse_loss(y_pred, y)
         loss = l1_loss if kind == 'l1' else mse_loss
-        sdi = SpectralDistortionIndex()
-        sdi(y_pred, y)
-        ergas = ErrorRelativeGlobalDimensionlessSynthesis(scaling_factor)
-        ergas(y_pred, y)
         psnr = 10 * torch.log10(1 / mse_loss)
         loss = l1_loss if kind == 'l1' else mse_loss
+
+        # TODO SDI and Ergas were removed to stop a memory leak on the gpu
+        sdi = None
+        ergas = None
+        sam = None
+        if TEST:
+            sdi = SpectralDistortionIndex() 
+            sdi(y_pred, y)
+            ergas = ErrorRelativeGlobalDimensionlessSynthesis(scaling_factor)
+            ergas(y_pred, y)
+            sam = SpectralAngleMapper().to(y.device)
+            sam(y_pred, y)
 
         return loss, {
             'l1_loss': l1_loss.detach().item(),
             'mse_loss': mse_loss.detach().item(),
+            'psnr': psnr.detach().item(),
+
+            
             'sdi': sdi.compute().detach().item(),
             'ergas': ergas.compute().detach().item(),
-            'psnr': psnr.detach().item(),
+            'sam': sam.compute().detach().item(),
+
             #'mu': torch.exp(self.log_mu).detach().item(),
             #'lambda': torch.exp(self.log_lambda).detach().item(),
             'optimization_loss': loss.detach().item(),
