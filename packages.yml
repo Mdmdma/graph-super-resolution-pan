@@ -1,0 +1,19 @@
+name: graph-sr-up
+channels:
+  - defaults
+dependencies:
+  - cudatoolkit=11.7
+  - cupy
+  - h5py
+  - pip
+  - python=3.11.2
+  - pytorch
+  - ruamel.yaml
+  - scikit-image
+  - scipy
+  - torchaudio
+  - torchvision
+  - pytorch-cuda=11.8
+  - ipykernel
+  - torchmetrics
+prefix: /scratch2/merler/anaconda/envs/graph-sr-up

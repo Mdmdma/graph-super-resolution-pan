@@ -3,6 +3,7 @@ import argparse
 from collections import defaultdict
 import time
 import csv
+import numpy as np
 
 import torch
 from torchvision.transforms import Normalize
@@ -32,7 +33,7 @@ class Evaluator:
 
     def evaluate(self):
         test_stats = defaultdict(float)
-
+        problemcounter = 0
         for sample in tqdm(self.dataloader, leave=False):
             sample = to_cuda(sample)
 
@@ -46,9 +47,16 @@ class Evaluator:
             _, loss_dict = self.model.get_loss(output, sample)
 
             for key in loss_dict:
+                if key == 'sam':
+                    if np.isnan(loss_dict[key]):
+                        problemcounter += 1
+                        print('problem')
+                        print(problemcounter)
+                        print(loss_dict[key])
+                        loss_dict[key] = 0
                 test_stats[key] += loss_dict[key]
 
-        return {k: v / len(self.dataloader) for k, v in test_stats.items()}
+        return {k: v / (len(self.dataloader)-problemcounter) for k, v in test_stats.items()}
 
     @staticmethod
     def get_dataloader(args: argparse.Namespace):

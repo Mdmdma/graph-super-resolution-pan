@@ -9,6 +9,7 @@ from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimen
 
 INPUT_DIM = 4
 FEATURE_DIM = 3
+
 TEST = True
 
 def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
@@ -101,16 +102,24 @@ class GraphSuperResolutionNet(nn.Module):
         loss = l1_loss if kind == 'l1' else mse_loss
 
         # TODO SDI and Ergas were removed to stop a memory leak on the gpu
-        sdi = None
-        ergas = None
-        sam = None
+        sdi = 0
+        ergas = 0
+        sam = 0
         if TEST:
             sdi = SpectralDistortionIndex() 
             sdi(y_pred, y)
+            sdi = sdi.compute().detach().item()
             ergas = ErrorRelativeGlobalDimensionlessSynthesis(scaling_factor)
             ergas(y_pred, y)
+            ergas = ergas.compute().detach().item()
+            
             sam = SpectralAngleMapper().to(y.device)
-            sam(y_pred, y)
+            sam.update(y_pred, y)
+            sam = sam.compute().detach().item()
+            
+            
+
+        
 
         return loss, {
             'l1_loss': l1_loss.detach().item(),
@@ -118,12 +127,12 @@ class GraphSuperResolutionNet(nn.Module):
             'psnr': psnr.detach().item(),
 
             
-            'sdi': sdi.compute().detach().item(),
-            'ergas': ergas.compute().detach().item(),
-            'sam': sam.compute().detach().item(),
+            'sdi': sdi,
+            'ergas': ergas,
+            'sam': sam,
 
             #'mu': torch.exp(self.log_mu).detach().item(),
             #'lambda': torch.exp(self.log_lambda).detach().item(),
-            'optimization_loss': loss.detach().item(),
+            'optimization_loss': loss.detach().item()
             #'average_link': torch.mean(output['neighbor_affinity'][:, 0:4].detach()).item()
         }

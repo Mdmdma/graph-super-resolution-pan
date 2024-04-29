@@ -15,3 +15,4 @@ parser.add_argument('--feature-extractor', type=str, default='UResNet', help='Fe
 parser.add_argument('--subset', type=str, required=True, help='Name of the subset') 
 parser.add_argument('--upsampler', type=str, help='name of the upsampler for the comparison baselines') 
 parser.add_argument('--data_output_dir', type=str, required=False, help='defines_the_output_directory_for_the_results') 
+parser.add_argument('--evaluation', type=str, default=True, help='enables extra metrics for testing')

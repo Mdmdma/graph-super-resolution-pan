@@ -32,7 +32,7 @@ class Evaluator:
 
     def evaluate(self):
         test_stats = defaultdict(float)
-
+        problemcounter = 0
         for sample in tqdm(self.dataloader, leave=False):
             sample = to_cuda(sample)
 
@@ -56,11 +56,24 @@ class Evaluator:
 
 
             _, loss_dict = self.model.get_loss(output, sample)
-
+            
             for key in loss_dict:
+                print(key)
+                print(test_stats[key])
+                print(loss_dict[key])
+                print(type(test_stats[key]))
+                print(type(loss_dict[key]))
+                if key == 'sam':
+                    if not loss_dict[key] > 0:
+                        problemcounter += 1
+                        print('problem')
+                        print(problemcounter)
+                        loss_dict[key] = 0
+                
+                
                 test_stats[key] += loss_dict[key]
-
-        return {k: v / len(self.dataloader) for k, v in test_stats.items()}
+            
+        return {k: v / (len(self.dataloader)-problemcounter) for k, v in test_stats.items()}
 
     @staticmethod
     def get_dataloader(args: argparse.Namespace):
@@ -98,9 +111,9 @@ if __name__ == '__main__':
 
     print(type(stats))
     my_dict = stats
-    arg1 = args.scaling
-    arg2 = args.upsampler
-    arg3 = args.subset
+    scaling_factor = args.scaling
+    upsampler = args.upsampler
+    subset = args.subset
 
     # Create the 'data' directory if it doesn't exist
     if not os.path.exists('data'):
@@ -111,7 +124,7 @@ if __name__ == '__main__':
 
     # Open the CSV file in append mode
     with open(csv_file_path, 'a', newline='') as csvfile:
-        fieldnames = list(my_dict.keys()) + ['arg1', 'arg2', 'arg3']  # Define the field names
+        fieldnames = list(my_dict.keys()) + ['scaling_factor', 'upsampler', 'subset']  # Define the field names
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         # Write the header row if the file is empty
@@ -120,7 +133,7 @@ if __name__ == '__main__':
 
         # Write a new row with dictionary values and additional arguments
         row_dict = my_dict.copy()
-        row_dict['arg1'] = arg1
-        row_dict['arg2'] = arg2
-        row_dict['arg3'] = arg3
+        row_dict['scaling_factor'] = scaling_factor
+        row_dict['upsampler'] = upsampler
+        row_dict['subset'] = subset
         writer.writerow(row_dict)

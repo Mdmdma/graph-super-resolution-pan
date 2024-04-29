@@ -37,6 +37,7 @@ parser.add_argument('--lr-step', type=int, default=10, help='LR scheduler step s
 parser.add_argument('--lr-gamma', type=float, default=0.9, help='LR decay rate')
 parser.add_argument('--skip-first', action='store_true', help='Don\'t optimize during first epoch')
 parser.add_argument('--gradient-clip', type=float, default=0, help='If > 0, clips gradient norm to that value')
+parser.add_argument('--evaluation', type=str, default=False, help='enables extra metrics for testing')
 
 # model
 parser.add_argument('--feature-extractor', type=str, default='UResNet', help='Feature extractor for edge potentials')
