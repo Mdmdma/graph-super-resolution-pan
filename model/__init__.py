@@ -1,1 +1,2 @@
 from .graph_sr_net import GraphSuperResolutionNet
+from .graph_sr_net_ex import GraphSuperResolutionNet_ex

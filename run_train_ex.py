@@ -14,14 +14,14 @@ from tqdm import tqdm
 import wandb
 
 from arguments import train_parser
-from model import GraphSuperResolutionNet
-from data import PanDataset
+from model import GraphSuperResolutionNet_ex
+from data import PanDataset_ex
 from utils import new_log, to_cuda, seed_all
 
 # Sample use from the comandline:
-# python run_train.py --dataset pan --data-dir /scratch2/merler/code/data --save-dir /scratch2/merler/ --wandb --subset test
+# python run_train.py --dataset pan --data-dir /scratch2/merler/code/data --save-dir /scratch2/merler/ --subset test
 # On the cluster
-# python -u /cluster/home/merler/graph-super-resolution-pan/run_train.py --dataset pan --data-dir /cluster/scratch/merler/data  --save-dir /cluster/scratch/merler/code/saved_models_cluster --wandb  --subset test --scaling 32
+# python -u /cluster/home/merler/graph-super-resolution-pan/run_train_ex.py --dataset pan --data-dir /cluster/scratch/merler/data  --save-dir /cluster/scratch/merler/code/saved_models_cluster  --subset test --scaling 32
 
 class Trainer:
 
@@ -33,7 +33,7 @@ class Trainer:
         
         seed_all(args.seed)
 
-        self.model = GraphSuperResolutionNet(
+        self.model = GraphSuperResolutionNet_ex(
             args.scaling,
             args.crop_size,
             args.feature_extractor,
@@ -192,7 +192,7 @@ class Trainer:
         phases = ('train', 'val')
         
         if args.dataset == 'pan':
-            datasets = {phase: PanDataset(os.path.join(args.data_dir, 'pan10/images_processed/', args.subset), **data_args, split=phase) for phase in phases}
+            datasets = {phase: PanDataset_ex(os.path.join(args.data_dir, 'pan10/images_processed/', args.subset), **data_args, split=phase) for phase in phases}
 
         else:
             raise NotImplementedError(f'Dataset {args.dataset}')

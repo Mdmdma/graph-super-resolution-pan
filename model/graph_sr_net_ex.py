@@ -1,19 +1,20 @@
 from math import log
 
+from math import log
+
 import torch
 from torch import nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
-from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimensionlessSynthesis , SpectralAngleMapper
 
 from .functional import create_fixed_cupy_sparse_matrices, GraphQuadraticSolver
 from losses import l1_loss_func, mse_loss_func
 
-
 INPUT_DIM = 4
-FEATURE_DIM = 3
+FEATURE_DIM = 64
 
 TEST = False
+
 
 def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
     B, M, H, W = feature_map.shape
@@ -42,7 +43,7 @@ def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
     return affinity
 
 
-class GraphSuperResolutionNet(nn.Module):
+class GraphSuperResolutionNet_ex(nn.Module):
     
     def __init__(
             self,
@@ -75,25 +76,29 @@ class GraphSuperResolutionNet(nn.Module):
             raise NotImplementedError(f'Feature extractor {feature_extractor}')
 
         self.log_lambda = nn.Parameter(torch.tensor([log(lambda_init)]))
-        # self.log_mu = nn.Parameter(torch.tensor([log(mu_init)]))
-        # self.mx_dict = create_fixed_cupy_sparse_matrices(crop_size, crop_size, scaling)
+        self.log_mu = nn.Parameter(torch.tensor([log(mu_init)]))
+        self.mx_dict = create_fixed_cupy_sparse_matrices(crop_size, crop_size, scaling)
 
     def forward(self, sample):
         guide, source, mask_lr = sample['guide'], sample['source'], sample['mask_lr']
 
         if self.feature_extractor is None:
-            pixel_features = torch.cat([guide, sample['y_bicubic']], dim=1) 
+            pixel_features = torch.cat([guide, sample['y_bicubic']], dim=1)
         else:
-            pixel_features = self.feature_extractor(torch.cat([guide, sample['y_bicubic']], dim=1)) 
+            print('\n')
+            print('before featureextraction')
+            print('guide ',guide.shape)
+            print('y_bicubic ',sample['y_bicubic'].shape)
+            print('\n')
+            pixel_features = self.feature_extractor(torch.cat([guide, sample['y_bicubic']], dim=1))
 
-        # mu, lambda_ = torch.exp(self.log_mu), torch.exp(self.log_lambda)
-        # neighbor_affinity = get_neighbor_affinity_no_border(pixel_features, mu, lambda_)
-        # y_pred = GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict, mask_lr)
-        # return {'y_pred': y_pred, 'neighbor_affinity': neighbor_affinity}
-    
-        y_pred = pixel_features #  GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict, mask_lr)
-        return {'y_pred': y_pred}
-    
+        mu, lambda_ = torch.exp(self.log_mu), torch.exp(self.log_lambda)
+        neighbor_affinity = get_neighbor_affinity_no_border(pixel_features, mu, lambda_)
+
+        y_pred = GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict, mask_lr)
+
+        return {'y_pred': y_pred, 'neighbor_affinity': neighbor_affinity}
+
     def get_loss(self, output, sample, kind='l1'):
         y_pred = output['y_pred']
         y = sample['y']
@@ -135,8 +140,10 @@ class GraphSuperResolutionNet(nn.Module):
             'ergas': ergas,
             'sam': sam,
 
-            # 'mu': torch.exp(self.log_mu).detach().item(),
-            # 'lambda': torch.exp(self.log_lambda).detach().item(),
+            'mu': torch.exp(self.log_mu).detach().item(),
+            'lambda': torch.exp(self.log_lambda).detach().item(),
             'optimization_loss': loss.detach().item(),
-            # 'average_link': torch.mean(output['neighbor_affinity'][:, 0:4].detach()).item()
+            'average_link': torch.mean(output['neighbor_affinity'][:, 0:4].detach()).item()
         }
+
+
