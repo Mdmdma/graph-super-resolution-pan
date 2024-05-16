@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import cupy as cp
 from cupyx.scipy.sparse.linalg import cg
+from cupyx.scipy.sparse import bmat, find, csr_matrix ,identity
 import scipy.sparse as sp
 
 MAX_ITER = 1500
@@ -10,7 +11,7 @@ MAX_ITER = 1500
 def create_fixed_cupy_sparse_matrices(H, W, upsampling):
     h = H // upsampling
     w = W // upsampling
-
+    
     # create the mapping matrix from neighbor dense affinity to sparse Laplacian
     matrices = {}
     for location in ('top', 'bottom', 'left', 'right'):
@@ -46,8 +47,19 @@ def create_fixed_cupy_sparse_matrices(H, W, upsampling):
     D = cp.kron(D, cp.ones((1, upsampling, upsampling), dtype=np.float32)) / (upsampling**2)  # h*w x H x W
     D = cp.sparse.coo_matrix(D.reshape((h * w, H * W))).tocsr()
     DtD = D.transpose().dot(D)
+    DtD = bmat([[DtD, None, None], [None, DtD, None], [None, None, DtD]]).tocsr()
+
+    D = cp.sparse.coo_matrix(D.reshape((h * w, H * W))).tocsr()
+    D = bmat([[D, None, None], [None, D, None], [None, None, D]]).tocsr()
+
+    G = identity(H*W, format='csr')
+    G = bmat([[G,G,G]])
+    GtG = G.transpose().dot(G)
+
+    for matrix_name in matrices.keys():
+        matrices[matrix_name] = bmat([[matrices[matrix_name], None, None], [None, matrices[matrix_name], None], [None, None, matrices[matrix_name]]]).tocsr()
     
-    return {**matrices, 'M': M, 'D': D, 'DtD': DtD}
+    return {**matrices, 'M': M, 'D': D, 'DtD': DtD, 'G': G, 'GtG': GtG}
 
 
 class GraphQuadraticSolver(torch.autograd.Function):
@@ -56,37 +68,44 @@ class GraphQuadraticSolver(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, neighbor_affinity, source, fixed_matrices, mask_source=None):
+    def forward(ctx, neighbor_affinity, source, guide, fixed_matrices):
         """
         neighbor_affinity (B x 5 x H x W): affinity among neighbor pixels
         source (B x 1 x h x w): source image
         mask_source (B x 1 x h x w): mask source image
         """
+        
+        assert source.is_cuda
+
+        source = source.squeeze(1)
+        source = torch.cat([source[:, 0, :, :], source[:, 1, :, :], source[:, 2, :, :]], axis=1) #concating the image channels
+        source = source.unsqueeze(1)
+
+
         assert neighbor_affinity.is_cuda
         assert source.is_cuda
         assert source.shape[1] == 1
+        assert guide.is_cuda
         assert not source.requires_grad
 
         B, _, h, w = source.shape
 
         D = fixed_matrices['D']
+        DtD = fixed_matrices['DtD']
+
+        G = fixed_matrices['G']
+        GtG = fixed_matrices['GtG']
+
         neighbor_affinity_cp = cp.asarray(neighbor_affinity.detach())
         source_cp = cp.asarray(source.detach().reshape((B, -1, 1)))
-
-        if mask_source is not None:
-            mask_source_cp = cp.asarray(mask_source.detach().reshape((B, -1)))
-        else:
-            mask_source_cp = cp.ones((B, h * w))
+        guide_cp = cp.asarray(guide.detach().reshape((B, -1, 1)))
 
         As = []
         bs = []
         for idx in range(0, B):
             L = build_laplacian(neighbor_affinity_cp[idx:idx + 1], fixed_matrices)
-            C = cp.sparse.diags(mask_source_cp[idx]).tocsr()
-            CD = C.dot(D)
-            DtCD = D.transpose().dot(CD)
-            As.append((DtCD + L))
-            bs.append(CD.transpose().dot(source_cp[idx]))
+            As.append((DtD + L + GtG))
+            bs.append(D.transpose().dot(source_cp[idx]) + G.transpose().dot(guide_cp[idx]))
 
         A = [[None] * B for _ in range(B)]
         for i in range(B):
@@ -95,9 +114,9 @@ class GraphQuadraticSolver(torch.autograd.Function):
         b = cp.concatenate(bs, axis=0)
 
         x_cp = cg(A, b, maxiter=MAX_ITER)[0]
-        x_cp = x_cp.reshape((B, -1, 1))
+        x_cp = x_cp.reshape(((B, -1, 1)))
         x = torch.as_tensor(x_cp, device='cuda')
-        x = x.reshape((B, 1, neighbor_affinity.shape[2], neighbor_affinity.shape[3]))
+        x = x.reshape((B, 3, neighbor_affinity.shape[2], neighbor_affinity.shape[3]))
 
         if ctx.needs_input_grad[0]:
             x.requires_grad = True
@@ -113,6 +132,9 @@ class GraphQuadraticSolver(torch.autograd.Function):
     def backward(ctx, grad_x):
         if grad_x is None:
             return None, None, None, None
+        
+        grad_x = torch.cat([grad_x[:, 0, :, :], grad_x[:, 1, :, :], grad_x[:, 2, :, :]], axis=1) #concating the image channels
+        grad_x = grad_x.unsqueeze(1)
 
         assert grad_x.shape[1] == 1
 
@@ -125,6 +147,7 @@ class GraphQuadraticSolver(torch.autograd.Function):
         grad_x_cp = grad_x_cp.reshape((-1, 1))
         grad_b_cp = cg(A.transpose().tocsr(), grad_x_cp, maxiter=MAX_ITER)[0]
         grad_b_cp = grad_b_cp.reshape((B, -1, 1))
+
 
         grad_neighbor_affinities = []
         for idx in range(0, B):
@@ -140,10 +163,14 @@ class GraphQuadraticSolver(torch.autograd.Function):
             grad_neighbor_affinities.append(grad_neighbor_affinity.reshape((1, 5, H, W)))
 
         grad_neighbor_affinity = torch.cat(grad_neighbor_affinities, dim=0)
+        grad_neighbor_affinity = grad_neighbor_affinity.reshape((B, 5, 3, H//3, W))
+        grad_neighbor_affinity = grad_neighbor_affinity.sum(dim=2)
+
         return grad_neighbor_affinity, None, None, None
 
 
 def build_laplacian(neighbor_affinity, remap):
+    neighbor_affinity = cp.concatenate((neighbor_affinity, neighbor_affinity,neighbor_affinity), axis=2)
     _, _, H, W = neighbor_affinity.shape
     neighbor_affinity = neighbor_affinity.reshape(5, H * W)
 
