@@ -1,11 +1,9 @@
 from math import log
-
-from math import log
-
 import torch
 from torch import nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
+from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimensionlessSynthesis , SpectralAngleMapper
 
 from .functional import create_fixed_cupy_sparse_matrices, GraphQuadraticSolver
 from losses import l1_loss_func, mse_loss_func
@@ -85,17 +83,12 @@ class GraphSuperResolutionNet_ex(nn.Module):
         if self.feature_extractor is None:
             pixel_features = torch.cat([guide, sample['y_bicubic']], dim=1)
         else:
-            print('\n')
-            print('before featureextraction')
-            print('guide ',guide.shape)
-            print('y_bicubic ',sample['y_bicubic'].shape)
-            print('\n')
             pixel_features = self.feature_extractor(torch.cat([guide, sample['y_bicubic']], dim=1))
 
         mu, lambda_ = torch.exp(self.log_mu), torch.exp(self.log_lambda)
         neighbor_affinity = get_neighbor_affinity_no_border(pixel_features, mu, lambda_)
 
-        y_pred = GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict, mask_lr)
+        y_pred = GraphQuadraticSolver.apply(neighbor_affinity, source, self.mx_dict)
 
         return {'y_pred': y_pred, 'neighbor_affinity': neighbor_affinity}
 

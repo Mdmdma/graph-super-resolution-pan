@@ -64,7 +64,7 @@ class GraphQuadraticSolver(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, neighbor_affinity, source, fixed_matrices, mask_source=None):
+    def forward(ctx, neighbor_affinity, source, fixed_matrices):
         """
         neighbor_affinity (B x 5 x H x W): affinity among neighbor pixels
         source (B x 1 x h x w): source image
@@ -114,7 +114,7 @@ class GraphQuadraticSolver(torch.autograd.Function):
         ctx.fixed_matrices = fixed_matrices
         ctx.A = A
         ctx.neighbor_affinity_shape = neighbor_affinity.shape
-        
+
         return x
 
     @staticmethod
@@ -137,6 +137,7 @@ class GraphQuadraticSolver(torch.autograd.Function):
         grad_b_cp = cg(A.transpose().tocsr(), grad_x_cp, maxiter=MAX_ITER)[0]
         grad_b_cp = grad_b_cp.reshape((B, -1, 1))
 
+
         grad_neighbor_affinities = []
         for idx in range(0, B):
             grad_neighbor_affinity_cp = cp.zeros((5, A.shape[0] // B))
@@ -154,7 +155,7 @@ class GraphQuadraticSolver(torch.autograd.Function):
         grad_neighbor_affinity = grad_neighbor_affinity.reshape((B, 5, 3, H//3, W))
         grad_neighbor_affinity = grad_neighbor_affinity.sum(dim=2)
 
-        return grad_neighbor_affinity, None, None, None
+        return grad_neighbor_affinity, None, None
 
 
 def build_laplacian(neighbor_affinity, remap):
