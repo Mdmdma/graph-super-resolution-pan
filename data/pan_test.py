@@ -117,9 +117,6 @@ class PanDataset(Dataset):
 
         y_bicubic = F.interpolate(source.unsqueeze(0), scale_factor=self.scaling, mode='bicubic', align_corners=False).float()
         y_bicubic = y_bicubic.reshape((3, self.crop_size[0], self.crop_size[1]))
-
-        
-        
         return {'guide': bw_image, 'y': image, 'source': source, 'mask_hr': mask_hr, 'mask_lr': mask_lr, 
             'y_bicubic': y_bicubic}
 

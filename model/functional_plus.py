@@ -5,7 +5,7 @@ from cupyx.scipy.sparse.linalg import cg
 from cupyx.scipy.sparse import bmat, find, csr_matrix ,identity
 import scipy.sparse as sp
 
-MAX_ITER = 1500
+MAX_ITER = 500
 
 
 def create_fixed_cupy_sparse_matrices(H, W, upsampling):
@@ -105,7 +105,7 @@ class GraphQuadraticSolver(torch.autograd.Function):
         for idx in range(0, B):
             L = build_laplacian(neighbor_affinity_cp[idx:idx + 1], fixed_matrices)
             As.append((DtD + L + GtG))
-            bs.append(D.transpose().dot(source_cp[idx]) + G.transpose().dot(guide_cp[idx]))
+            bs.append(D.transpose().dot(source_cp[idx]) + G.transpose().dot(guide_cp[idx]) * 3)
 
         A = [[None] * B for _ in range(B)]
         for i in range(B):
