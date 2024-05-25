@@ -11,7 +11,7 @@ from losses import l1_loss_func, mse_loss_func
 INPUT_DIM = 4
 FEATURE_DIM = 64
 
-TEST = False
+TEST = True
 
 
 def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
@@ -93,8 +93,9 @@ class GraphSuperResolutionNet_ex_plus(nn.Module):
         return {'y_pred': y_pred, 'neighbor_affinity': neighbor_affinity}
 
     def get_loss(self, output, sample, kind='l1'):
-        y_pred = output['y_pred']
+        y_pred = output['y_pred'].type(torch.float32)
         y = sample['y']
+        y_bicubic = sample['y_bicubic']
         lr = sample['source']
         scaling_factor = y.shape[-1] // lr.shape[-1]
         l1_loss = F.l1_loss(y_pred, y)
@@ -107,17 +108,24 @@ class GraphSuperResolutionNet_ex_plus(nn.Module):
         sdi = 0
         ergas = 0
         sam = 0
+        downsapled_color_error = 0
+        bw_error = 0
         if TEST:
-            sdi = SpectralDistortionIndex() 
-            sdi(y_pred, y)
-            sdi = sdi.compute().detach().item()
-            ergas = ErrorRelativeGlobalDimensionlessSynthesis(scaling_factor)
+            #sdi = SpectralDistortionIndex() 
+            #sdi(y_pred, y)
+            # sdi = sdi.compute().detach().item()
+            ergas = ErrorRelativeGlobalDimensionlessSynthesis(1 / scaling_factor) # 1/ratio has to be implemented because of a bug in the library. The bug is fixed in the library, so be careful when updating the library
             ergas(y_pred, y)
             ergas = ergas.compute().detach().item()
             
             sam = SpectralAngleMapper().to(y.device)
             sam.update(y_pred, y)
             sam = sam.compute().detach().item()
+
+            downsapled_color_error = F.mse_loss(y_pred, y_bicubic)
+            bw_error = F.mse_loss(y_pred.mean(1, keepdim=True), y.mean(1, keepdim=True))
+
+
             
             
 
@@ -127,6 +135,8 @@ class GraphSuperResolutionNet_ex_plus(nn.Module):
             'l1_loss': l1_loss.detach().item(),
             'mse_loss': mse_loss.detach().item(),
             'psnr': psnr.detach().item(),
+            'downsapled_color_error': downsapled_color_error.detach().item(),
+            'bw_error': bw_error.detach().item(),
 
             
             'sdi': sdi,

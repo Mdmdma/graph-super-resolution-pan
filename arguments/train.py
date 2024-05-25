@@ -16,10 +16,10 @@ parser.add_argument('--wandb-project', type=str, default='graph-sr', help='Wandb
 # data
 parser.add_argument('--dataset', type=str, required=True, help='Name of the dataset')
 parser.add_argument('--data-dir', type=str, required=True, help='Root directory of the dataset')
-parser.add_argument('--num-workers', type=int, default=1, metavar='N', help='Number of dataloader worker processes')
+parser.add_argument('--num-workers', type=int, default=8, metavar='N', help='Number of dataloader worker processes')
 parser.add_argument('--batch-size', type=int, default=1)
 parser.add_argument('--crop-size', type=int, default=64, help='Size of the input (squared) patches')
-parser.add_argument('--scaling', type=int, default=32, help='Scaling factor')
+parser.add_argument('--scaling', type=int, default=16, help='Scaling factor')
 parser.add_argument('--max-rotation', type=float, default=15., help='Maximum rotation angle (degrees)')
 parser.add_argument('--no-flip', action='store_true', default=False, help='Switch off random flipping')
 parser.add_argument('--in-memory', action='store_true', default=True, help='Hold data in memory during training')
@@ -38,6 +38,7 @@ parser.add_argument('--lr-gamma', type=float, default=0.9, help='LR decay rate')
 parser.add_argument('--skip-first', action='store_true', help='Don\'t optimize during first epoch')
 parser.add_argument('--gradient-clip', type=float, default=0, help='If > 0, clips gradient norm to that value')
 parser.add_argument('--evaluation', type=str, default=False, help='enables extra metrics for testing')
+parser.add_argument('--training_mode', type=str, default='w/o-graph', help='adds the graph layer: w/o-graph, graph, graph-plus')
 
 # model
 parser.add_argument('--feature-extractor', type=str, default='UResNet', help='Feature extractor for edge potentials')

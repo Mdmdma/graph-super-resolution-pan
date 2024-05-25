@@ -14,7 +14,7 @@ from tqdm import tqdm
 import wandb
 
 from arguments import train_parser
-from model import GraphSuperResolutionNet
+from model import GraphSuperResolutionNet, GraphSuperResolutionNet_ex, GraphSuperResolutionNet_ex_plus
 from data import PanDataset
 from utils import new_log, to_cuda, seed_all
 
@@ -33,13 +33,34 @@ class Trainer:
         
         seed_all(args.seed)
 
-        self.model = GraphSuperResolutionNet(
-            args.scaling,
-            args.crop_size,
-            args.feature_extractor,
-            lambda_init=args.lambda_init,
-            mu_init=args.mu_init
-        )
+        if args.training_mode == 'w/o-graph':
+            self.model = GraphSuperResolutionNet(
+                args.scaling,
+                args.crop_size,
+                args.feature_extractor,
+                lambda_init=args.lambda_init,
+                mu_init=args.mu_init
+            )
+        elif args.training_mode == 'graph':
+            self.model = GraphSuperResolutionNet_ex(
+                args.scaling,
+                args.crop_size,
+                args.feature_extractor,
+                lambda_init=args.lambda_init,
+                mu_init=args.mu_init
+            )
+        elif args.training_mode == 'graph-plus':
+            print('Training with graph-plus')
+            self.model = GraphSuperResolutionNet_ex_plus(
+                args.scaling,
+                args.crop_size,
+                args.feature_extractor,
+                lambda_init=args.lambda_init,
+                mu_init=args.mu_init
+            )
+        else:
+            raise NotImplementedError(f'Training mode {args.trainingmode} not implemented')
+
         self.model.cuda()
 
         self.experiment_folder = new_log(os.path.join(args.save_dir, args.dataset), args)

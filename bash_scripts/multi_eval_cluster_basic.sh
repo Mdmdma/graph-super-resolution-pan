@@ -4,7 +4,9 @@
 # the folder, where the models lie and the selected model range has to be given as arguments.
 
 # sample use ./multi_eval.sh /scratch2/merler/code/saved_models/pan 17 21
-#/scratch2/merler/code/saved_models/pan/experiment_20/args.csv
+
+# to use on the cluster ./multi_eval_cluster_basic.sh /cluster/scratch/merler/code/saved_models_cluster_graph_plus_500/pan 17 21
+
 
 # Check if the required arguments are provided
 if [ "$#" -ne 3 ]; then
@@ -28,18 +30,24 @@ do
     if [ -f "$args_file" ]; then
         scaling=$(awk -F',' '/scaling/ {print $2}' "$args_file")
         training_mode=$(awk -F',' '/training_mode/ {print $2}' "$args_file")
+        batch_size=$(awk -F',' '/batch_size/ {print $2}' "$args_file")
+        crop_size=$(awk -F',' '/crop_size/ {print $2}' "$args_file")
+        training_mode="graph-plus"
         echo $scaling
         echo $experiment_path
         echo $model_path
         echo $training_mode
-        
-        python /scratch2/merler/code/graph-super-resolution-pan/run_eval.py \
+        echo $crop_size
+
+        python /cluster/home/merler/graph-super-resolution-pan/run_eval.py \
         --checkpoint $model_path \
         --dataset pan \
-        --data-dir /scratch2/merler/code/data \
-        --subset schweiz_random_200 \
+        --data-dir /cluster/scratch/merler/data \
+        --subset test_small \
         --scaling $scaling\
-        --training_mode $training_mode
+        --training_mode $training_mode \
+        --batch-size $batch_size\
+        --crop-size $crop_size
 
     else
         echo "File $args_file not found"

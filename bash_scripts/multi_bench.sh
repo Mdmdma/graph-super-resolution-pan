@@ -10,7 +10,7 @@
 
 upscaling_factors=(1 2 4 8 16 32)
 # 
-upsamplers=( "pansharpen_pixel_average" "scale_mean_values" "bicubic_upsample")
+upsamplers=( "pansharpen_pixel_average" "scale_mean_values" "bicubic_upsample" )
 dataset="schweiz_random_200"
 
 # Loop through the range of numbers

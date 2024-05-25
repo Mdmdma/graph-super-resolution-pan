@@ -9,9 +9,8 @@ import torch
 from torchvision.transforms import Normalize
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
 from arguments import eval_parser
-from model import GraphSuperResolutionNet
+from model import GraphSuperResolutionNet, GraphSuperResolutionNet_ex, GraphSuperResolutionNet_ex_plus
 from data import PanDataset
 from utils import to_cuda
 from pan_additions.naive_upsampling import visualize_tensor, save_tensor_as_image
@@ -24,8 +23,17 @@ class Evaluator:
         self.args = args
 
         self.dataloader = self.get_dataloader(args)
-
-        self.model = GraphSuperResolutionNet(args.scaling, args.crop_size, args.feature_extractor)
+        print(args.training_mode)
+        if args.training_mode == 'w/o-graph':
+            self.model = GraphSuperResolutionNet(args.scaling, args.crop_size, args.feature_extractor, True)
+        elif args.training_mode == 'graph':
+            self.model = GraphSuperResolutionNet_ex(args.scaling, args.crop_size, args.feature_extractor)
+        elif args.training_mode == 'graph-plus':   
+            print('somethid')
+            self.model = GraphSuperResolutionNet_ex_plus(args.scaling, args.crop_size, args.feature_extractor)
+        else:
+            raise NotImplementedError(f'Training mode {args.training_mode}')
+        
         self.resume(path=args.checkpoint)
         self.model.cuda().eval()
 
@@ -45,7 +53,6 @@ class Evaluator:
 
 
             _, loss_dict = self.model.get_loss(output, sample)
-
             for key in loss_dict:
                 if key == 'sam':
                     if np.isnan(loss_dict[key]):
@@ -108,17 +115,20 @@ if __name__ == '__main__':
     scaling_factor = args.scaling
     checkpoint = args.checkpoint
     subset = args.subset
+    batch_size = args.batch_size
+    training_mode = args.training_mode
+    crop_size = args.crop_size
 
     # Create the 'data' directory if it doesn't exist
     if not os.path.exists('data'):
         os.makedirs('data')
 
     # Construct the path to the CSV file
-    csv_file_path = os.path.join('/scratch2/merler/code/data/pan10/evaluation_results', 'results_eval.csv')
+    csv_file_path = os.path.join(output_dir, 'results_eval.csv')
 
     # Open the CSV file in append mode
     with open(csv_file_path, 'a', newline='') as csvfile:
-        fieldnames = list(my_dict.keys()) + ['scaling_factor', 'checkpoint', 'subset']  # Define the field names
+        fieldnames = list(my_dict.keys()) + ['scaling_factor', 'batch_size','crop_size', 'subset', 'checkpoint','training_mode']  # Define the field names
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         # Write the header row if the file is empty
@@ -128,6 +138,9 @@ if __name__ == '__main__':
         # Write a new row with dictionary values and additional arguments
         row_dict = my_dict.copy()
         row_dict['scaling_factor'] = scaling_factor
-        row_dict['checkpoint'] = checkpoint
+        row_dict['batch_size'] = batch_size
+        row_dict['crop_size'] = crop_size
         row_dict['subset'] = subset
+        row_dict['checkpoint'] = checkpoint
+        row_dict['training_mode'] = training_mode
         writer.writerow(row_dict)
