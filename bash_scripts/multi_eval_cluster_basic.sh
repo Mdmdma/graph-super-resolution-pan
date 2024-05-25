@@ -39,7 +39,8 @@ do
         echo $training_mode
         echo $crop_size
 
-        python /cluster/home/merler/graph-super-resolution-pan/run_eval.py \
+
+        python /cluster/home/merler/code/graph-super-resolution-pan/run_eval.py \
         --checkpoint $model_path \
         --dataset pan \
         --data-dir /cluster/scratch/merler/data \

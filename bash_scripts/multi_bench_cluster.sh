@@ -16,7 +16,7 @@ generate_job_script() {
 #SBATCH --gpus=1
 #SBATCH --gres=gpumem:10G
 
-python /cluster/home/merler/graph-super-resolution-pan/benchmark.py \
+python /cluster/home/merler/code/graph-super-resolution-pan/benchmark.py \
     --dataset pan \
     --subset schweiz_random_200 \
     --data-dir /cluster/scratch/merler/data \

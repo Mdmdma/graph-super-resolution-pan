@@ -1,5 +1,8 @@
 #!/bin/bash
 
+
+#sample use ./multi_eval_cluster.sh /cluster/scratch/merler/code/saved_models_cluster_graph_plus_500/pan 0 1 
+
 # Function to generate a Slurm job script for a single evaluation run
 generate_job_script() {
     local folder_path=$1
@@ -29,7 +32,9 @@ generate_job_script() {
 #SBATCH --gpus=1
 #SBATCH --gres=gpumem:10G
 
-python /cluster/home/merler/graph-super-resolution-pan/run_eval.py \
+
+
+python /cluster/home/merler/code/graph-super-resolution-pan/run_eval.py \
     --checkpoint $model_path \
     --dataset pan \
     --data-dir /cluster/scratch/merler/data \
