@@ -11,7 +11,7 @@ from losses import l1_loss_func, mse_loss_func
 INPUT_DIM = 4
 FEATURE_DIM = 64
 
-TEST = False
+TEST = True
 
 
 def get_neighbor_affinity_no_border(feature_map, mu, lambda_):
@@ -93,7 +93,7 @@ class GraphSuperResolutionNet_ex(nn.Module):
         return {'y_pred': y_pred, 'neighbor_affinity': neighbor_affinity}
 
     def get_loss(self, output, sample, kind='l1'):
-        y_pred = output['y_pred']
+        y_pred = output['y_pred'].float()
         y = sample['y']
         y_bicubic = sample['y_bicubic']
         lr = sample['source']

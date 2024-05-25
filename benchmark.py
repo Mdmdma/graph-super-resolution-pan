@@ -110,7 +110,7 @@ if __name__ == '__main__':
         os.makedirs('data')
 
     # Construct the path to the CSV file
-    csv_file_path = os.path.join('/scratch2/merler/code/data/pan10/evaluation_results', 'results_benchmark.csv')
+    csv_file_path = os.path.join(output_dir, 'results_benchmark.csv')
 
     # Open the CSV file in append mode
     with open(csv_file_path, 'a', newline='') as csvfile:

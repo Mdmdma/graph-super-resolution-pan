@@ -111,9 +111,9 @@ class GraphSuperResolutionNet_ex_plus(nn.Module):
         downsapled_color_error = 0
         bw_error = 0
         if TEST:
-            #sdi = SpectralDistortionIndex() 
-            #sdi(y_pred, y)
-            # sdi = sdi.compute().detach().item()
+            sdi = SpectralDistortionIndex() 
+            sdi(y_pred, y)
+            sdi = sdi.compute().detach().item()
             ergas = ErrorRelativeGlobalDimensionlessSynthesis(1 / scaling_factor) # 1/ratio has to be implemented because of a bug in the library. The bug is fixed in the library, so be careful when updating the library
             ergas(y_pred, y)
             ergas = ergas.compute().detach().item()

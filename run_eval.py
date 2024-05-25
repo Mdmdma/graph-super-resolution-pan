@@ -17,18 +17,24 @@ from pan_additions.naive_upsampling import visualize_tensor, save_tensor_as_imag
 
 # Sample use python run_eval.py --checkpoint /scratch2/merler/pan/experiment_23/best_model.pth --dataset pan --data-dir /scratch2/merler/code/data --subset schweiz_random_200
 
+# Cluster use python run_eval.py --checkpoint /cluster/scratch/merler/code/saved_models_cluster_graph/pan/experiment_23/best_model.pth --dataset pan --data-dir /cluster/scratch/merler/data --subset schweiz_random_200
+
 class Evaluator:
 
     def __init__(self, args: argparse.Namespace):
         self.args = args
 
         self.dataloader = self.get_dataloader(args)
-        print(args.training_mode)
+        print(repr(args.training_mode))
+        print(type(args.training_mode))
+        print('graph-plus')
+        print(str(args.training_mode)== 'graph-plus')
+        print(args.training_mode + ' graph-plus')
         if args.training_mode == 'w/o-graph':
             self.model = GraphSuperResolutionNet(args.scaling, args.crop_size, args.feature_extractor, True)
         elif args.training_mode == 'graph':
             self.model = GraphSuperResolutionNet_ex(args.scaling, args.crop_size, args.feature_extractor)
-        elif args.training_mode == 'graph-plus':   
+        elif args.training_mode == 'graph-plus':
             print('somethid')
             self.model = GraphSuperResolutionNet_ex_plus(args.scaling, args.crop_size, args.feature_extractor)
         else:
@@ -99,6 +105,7 @@ class Evaluator:
 if __name__ == '__main__':
     args = eval_parser.parse_args()
     print(eval_parser.format_values())
+    print(args)
 
     evaluator = Evaluator(args)
 

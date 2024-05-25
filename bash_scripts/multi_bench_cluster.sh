@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Function to generate a Slurm job script for a single benchmark run
@@ -16,9 +15,9 @@ generate_job_script() {
 #SBATCH --gpus=1
 #SBATCH --gres=gpumem:10G
 
-python /cluster/home/merler/code/graph-super-resolution-pan/benchmark.py \
+python /cluster/home/merler/graph-super-resolution-pan/benchmark.py \
     --dataset pan \
-    --subset schweiz_random_200 \
+    --subset test_small \
     --data-dir /cluster/scratch/merler/data \
     --scaling $upscaling_factor \
     --upsampler $upsampler \
@@ -30,7 +29,7 @@ EOF
 
 # Check if the required arguments are provided
 
-upscaling_factors=(1 2 4 8 16 32)
+upscaling_factors=(1 2)
 upsamplers=("pansharpen_pixel_average" "bicubic_upsample" "pansharpen_hsv")
 
 # Loop through the range of numbers

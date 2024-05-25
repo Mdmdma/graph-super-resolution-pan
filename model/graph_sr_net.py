@@ -87,7 +87,7 @@ class GraphSuperResolutionNet(nn.Module):
         return {'y_pred': y_pred}
     
     def get_loss(self, output, sample, kind='l1'):
-        y_pred = output['y_pred'].float32
+        y_pred = output['y_pred'].float()
         y = sample['y']
         y_bicubic = sample['y_bicubic']
         lr = sample['source']
