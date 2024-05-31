@@ -61,7 +61,7 @@ def visualize_tensor(tensor, title=None):
     input()
 
 
-def save_tensor_as_image(tensor, title=None):
+def save_tensor_as_image(tensor, title=None, save_dir=None):
     img = tensor.cpu()
     img = img.squeeze().numpy()
     img = img[0, :, :, :] #  Choose the first image of the batch
@@ -70,5 +70,5 @@ def save_tensor_as_image(tensor, title=None):
     # Save the image
     img = (img * 255).astype(np.uint8)  # Scale to uint8 range
     image = Image.fromarray(img)
-    image.save(f'/cluster/scratch/merler/data/pan10/output_images/{title}.png')
+    image.save(save_dir, title, '.png')
     

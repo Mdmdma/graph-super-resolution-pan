@@ -2,7 +2,7 @@
 
 This is the official implementation of the Bachelor thesis: 
 
-### "Prospects of graph regularized super resolution in pan-sharpening" (IGP 2022)
+### "Prospects of graph regularized super resolution in pan-sharpening" (IGP 2024)
 
 Mathis Erler, supervised by ALexander Becker, Konrad Schindler
 
@@ -24,18 +24,16 @@ We extensively evaluate our method on several datasets, and consistently outperf
 ### Dependencies
 We recommend creating a new conda environment with all required dependencies by running
 ```bash
-conda env create -f environment.yml
-conda activate graph-sr
+conda env create -f environment_pan.yml
+conda activate graph-sr-pan
 ```
 
 ### Data
-To reproduce our results, create a data directory (e.g. `./data`) with the three datasets:
-* **NYUv2**: Download the labeled dataset from [[here]](https://cs.nyu.edu/~silberman/datasets/nyu_depth_v2.html) and place the `nyu_depth_v2_labeled.mat` in `./data/NYU Depth v2`, along with our split indices file from [[here]](https://drive.google.com/file/d/1MclM7cejBAFBilZUJ4xCRBhzv6SJvJ7v/view?usp=sharing).
-* **Middlebury**: Download the 2005-2014 scenes (full size, two-view) from [[here]](https://vision.middlebury.edu/stereo/data/) and place the extracted scenes in `./data/Middlebury/<year>/<scene>`. For the 2005 dataset, make sure to only put the scenes for which ground truth is available. The data splits are defined in code.
-* **DIML**: Download the indoor data sample from [[here]](https://dimlrgbd.github.io) and extract it into `./data/DIML/{train,test}` respectively. Then run `python scripts/create_diml_npy.py ./data/DIML` to create numpy binary files for faster data loading.
+All models were trained on syntetic data. As a datasource we used Swissimage 10cm. Acces on the images was March 2024. To replicate the results, townload all image links from[[Swissimage 10cm]](https://www.swisstopo.admin.ch/de/orthobilder-swissimage-10-cm) and place them in a folder. The script downloader.py in the folder pan_additions can be used to make the data split and download the images. The script preprocessor.py can be used to cut the large imaeg patches into smaller parts and save them in npy arrays for fast acces during training.
+```
 
 ### Checkpoints
-Our pretrained model checkpoints which were used for the numbers in our paper, for all three datasets and upsampling factors, can be downloaded from [[here]](https://drive.google.com/drive/folders/17WgvuyoPnQPpOwIlzQSn20I8PB36bCzO?usp=sharing).
+Our pretrained model checkpoints which were used for the numbers in the tesis can be found [[here]](https://drive.google.com/drive/folders/1Via3dit1A-7rEyZ0U4E3qqbW5dXjDovj?usp=sharing). 
 
 ## Training
 
@@ -59,6 +57,13 @@ Again, you can query all available options by running
 ```bash
 python run_train.py -h
 ```
+The folder bash scripts offers scripts to train and evaluate models in parallel on a SLURM cluster.
 
-```
-To run the scripts in parallel the folder bash scripts gives a number of usefull tools.
+## Acknowledgements
+We thank the authors of the original paper for providing their code and support, as well as the authors of the datasets used in this work. 
+
+## License
+This code is released under the MIT License (refer to the LICENSE file for details).
+
+## Contact
+If you have any questions, feel free to reach out to Mathis Erler (merler@ethz.ch)

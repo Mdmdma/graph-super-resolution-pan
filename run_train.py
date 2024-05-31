@@ -32,14 +32,14 @@ class Trainer:
         self.dataloaders = self.get_dataloaders(args)
         
         seed_all(args.seed)
-
         if args.training_mode == 'w/o-graph':
             self.model = GraphSuperResolutionNet(
                 args.scaling,
                 args.crop_size,
                 args.feature_extractor,
                 lambda_init=args.lambda_init,
-                mu_init=args.mu_init
+                mu_init=args.mu_init,
+                evaluation=args.evaluation
             )
         elif args.training_mode == 'graph':
             self.model = GraphSuperResolutionNet_ex(
@@ -47,7 +47,8 @@ class Trainer:
                 args.crop_size,
                 args.feature_extractor,
                 lambda_init=args.lambda_init,
-                mu_init=args.mu_init
+                mu_init=args.mu_init,
+                evaluation=args.evaluation
             )
         elif args.training_mode == 'graph-plus':
             print('Training with graph-plus')
@@ -56,7 +57,9 @@ class Trainer:
                 args.crop_size,
                 args.feature_extractor,
                 lambda_init=args.lambda_init,
-                mu_init=args.mu_init
+                mu_init=args.mu_init,
+                evaluation=args.evaluation
+
             )
         else:
             raise NotImplementedError(f'Training mode {args.trainingmode} not implemented')

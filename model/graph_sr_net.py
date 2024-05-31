@@ -5,8 +5,8 @@ import torch.nn.functional as F
 import segmentation_models_pytorch as smp
 from torchmetrics.image import SpectralDistortionIndex, ErrorRelativeGlobalDimensionlessSynthesis , SpectralAngleMapper
 
-from .functional import create_fixed_cupy_sparse_matrices, GraphQuadraticSolver
-from losses import l1_loss_func, mse_loss_func
+from .functional import GraphQuadraticSolver
+
 
 
 INPUT_DIM = 4
@@ -50,7 +50,8 @@ class GraphSuperResolutionNet(nn.Module):
             feature_extractor='UResNet',
             pretrained=True,
             lambda_init=1.0,
-            mu_init=0.1
+            mu_init=0.1,
+            evaluation=True
     ):
         super().__init__()
 
@@ -74,6 +75,7 @@ class GraphSuperResolutionNet(nn.Module):
             raise NotImplementedError(f'Feature extractor {feature_extractor}')
 
         self.log_lambda = nn.Parameter(torch.tensor([log(lambda_init)]))
+        self.evaluation = evaluation
 
     def forward(self, sample):
         guide, source, mask_lr = sample['guide'], sample['source'], sample['mask_lr']
@@ -105,7 +107,7 @@ class GraphSuperResolutionNet(nn.Module):
         sam = 0
         downsapled_color_error = 0
         bw_error = 0
-        if TEST:
+        if self.evaluation:
             sdi = SpectralDistortionIndex() 
             sdi(y_pred, y)
             sdi = sdi.compute().detach().item()

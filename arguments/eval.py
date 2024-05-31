@@ -16,4 +16,5 @@ parser.add_argument('--subset', type=str, required=True, help='Name of the subse
 parser.add_argument('--upsampler', type=str, help='name of the upsampler for the comparison baselines') 
 parser.add_argument('--data_output_dir', type=str, default='/cluster/scratch/merler/data/pan10/evaluation_results',required=False, help='defines_the_output_directory_for_the_results') 
 parser.add_argument('--evaluation', type=str, default=True, help='enables extra metrics for testing')
+parser.add_argument('--visulaize', type=bool, default=False, help='enables visualization of the results')
 parser.add_argument('--training_mode', type=str, default='w/o-graph', help='adds the graph layer: w/o-graph, graph, graph-plus')

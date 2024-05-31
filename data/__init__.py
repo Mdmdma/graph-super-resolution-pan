@@ -1,2 +1,2 @@
-from .pan_test import PanDataset
+from .pan import PanDataset
 

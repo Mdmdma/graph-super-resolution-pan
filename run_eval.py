@@ -26,11 +26,11 @@ class Evaluator:
 
         self.dataloader = self.get_dataloader(args)
         if args.training_mode == 'w/o-graph':
-            self.model = GraphSuperResolutionNet(args.scaling, args.crop_size, args.feature_extractor, True)
+            self.model = GraphSuperResolutionNet(args.scaling, args.crop_size, args.feature_extractor, args.evaluation)
         elif args.training_mode == 'graph':
-            self.model = GraphSuperResolutionNet_ex(args.scaling, args.crop_size, args.feature_extractor)
+            self.model = GraphSuperResolutionNet_ex(args.scaling, args.crop_size, args.feature_extractor, args.evaluation)
         elif args.training_mode == 'graph-plus':
-            self.model = GraphSuperResolutionNet_ex_plus(args.scaling, args.crop_size, args.feature_extractor)
+            self.model = GraphSuperResolutionNet_ex_plus(args.scaling, args.crop_size, args.feature_extractor, args.evaluation)
         else:
             raise NotImplementedError(f'Training mode {args.training_mode}')
         
@@ -47,18 +47,21 @@ class Evaluator:
             sample = to_cuda(sample)
 
             output = self.model(sample)
-
-            picture = output['y_pred']
-            #picture = sample['y']
-            # visualize_tensor(picture, title='model_upsampling')
-            if counter < 8:
-                title = f"{'w_o_graph'} {args.scaling} {counter}"
-                #title = 'original'
-                save_tensor_as_image(picture, title=title)
-                
-            counter +=1
-            if counter == 9:  
-                exit()
+            
+            # visualize the results, images are saved in the data dir under /
+            if self.args.visulaize:
+                picture = output['y_pred']
+                #picture = sample['y']
+                # 
+                if counter < 8:
+                    title = f"{'w_o_graph'} {args.scaling} {counter}"
+                    #title = 'original'
+                    visualize_tensor(picture, title=title)
+                    save_tensor_as_image(picture, title=title , savedir= args.data_output_dir)
+                    
+                counter +=1
+                if counter == 9:  
+                    exit()
             
 
             

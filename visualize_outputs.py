@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import subprocess
 
+# This script can be used to visualize the results of the different models.
+# it expects as input a csv as it gets created by the multi eval bash scripts 
+
 if __name__ == '__main__':
 
     file_path = '/cluster/scratch/merler/data/pan10/evaluation_results/results_eval_without_graph_complete_new.csv'
