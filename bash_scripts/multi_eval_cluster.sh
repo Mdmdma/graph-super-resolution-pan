@@ -68,6 +68,7 @@ do
 
         #this line is needed to strip a \r from the return. This is hard to debug, as the \r is not wisible in print statements
         training_mode=$(echo "$training_mode" | tr -d '\r')
+        batch_size=$(echo "$batch_size" | tr -d '\r')
         if [ -z "$training_mode" ]; then
             echo "no training mode in the args file, use w/o-graph as the traing mode"
             training_mode="w/o-graph"

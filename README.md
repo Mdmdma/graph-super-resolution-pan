@@ -1,15 +1,16 @@
-# Learning Graph Regularisation for Guided Super-Resolution
+# Prospects of graph regularized super resolution in pan-sharpening
 
-This is the official implementation of the paper: 
+This is the official implementation of the Bachelor thesis: 
 
-### "Learning Graph Regularisation for Guided Super-Resolution" (CVPR 2022)
+### "Prospects of graph regularized super resolution in pan-sharpening" (IGP 2022)
 
-Riccardo de Lutio*, Alexander Becker*, Stefano D'Aronco, Stefania Russo, Jan Dirk Wegner and Konrad Schindler (&ast;equal contribution)
+Mathis Erler, supervised by ALexander Becker, Konrad Schindler
 
+As the whole thesis, also this code implementation is based on the original code of the paper "Learning Graph Regularisation for Guided Super-Resolution" by Riccardo de Lutio, Alexander Becker, Stefano D'Aronco, Stefania Russo, Jan D. Wegner, Konrad Schindler.
 **[[Paper]](https://arxiv.org/abs/2203.14297) &nbsp;|&nbsp; [[5 minute explainer video]](https://www.youtube.com/watch?v=ZFDErHUlCBE&ab_channel=RiccardodeLutio)**
 
-![Teaser](images/teaser_dark.png#gh-dark-mode-only)
-![Teaser](images/teaser_light.png#gh-light-mode-only)
+![Teaser](images/image.png)
+
 
 ## Abstract
 
@@ -59,12 +60,5 @@ Again, you can query all available options by running
 python run_train.py -h
 ```
 
-## Citation
 ```
-@inproceedings{deLutio2022,
- author = {de Lutio, Riccardo and Becker, Alexander and D'Aronco, Stefano and Russo, Stefania and Wegner, Jan D. and Schindler, Konrad},
- title = {Learning Graph Regularisation for Guided Super-Resolution},
- booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
- year = {2022},
-} 
-```
+To run the scripts in parallel the folder bash scripts gives a number of usefull tools.

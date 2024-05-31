@@ -15,7 +15,7 @@ from data import PanDataset
 from utils import to_cuda
 from pan_additions.naive_upsampling import pansharpen_pixel_average, scale_mean_values, bicubic_upsample, pansharpen_hsv ,visualize_tensor, save_tensor_as_image
 
-# Sample use python benchmark.py --dataset pan --data-dir /scratch2/merler/code/data --subset test --upsampler pansharpen_pixel_average --scaling 4
+# Sample use python benchmark.py --dataset pan --data-dir /cluster/scratch/merler/data --subset test_small --upsampler pansharpen_pixel_average --scaling 4
 class Evaluator:
 
     def __init__(self, args: argparse.Namespace):

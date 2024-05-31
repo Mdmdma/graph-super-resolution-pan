@@ -14,6 +14,7 @@ generate_job_script() {
 #SBATCH --mem-per-cpu=4G
 #SBATCH --gpus=1
 #SBATCH --gres=gpumem:10G
+source '/cluster/home/merler/miniconda3/bin/activate' '/cluster/home/merler/miniconda3/envs/test'
 
 python /cluster/home/merler/graph-super-resolution-pan/benchmark.py \
     --dataset pan \

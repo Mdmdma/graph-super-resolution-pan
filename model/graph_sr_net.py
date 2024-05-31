@@ -90,6 +90,7 @@ class GraphSuperResolutionNet(nn.Module):
         y_pred = output['y_pred'].float()
         y = sample['y']
         y_bicubic = sample['y_bicubic']
+        source = sample['source']
         lr = sample['source']
         scaling_factor = y.shape[-1] // lr.shape[-1]
         l1_loss = F.l1_loss(y_pred, y)
@@ -115,8 +116,7 @@ class GraphSuperResolutionNet(nn.Module):
             sam = SpectralAngleMapper().to(y.device)
             sam.update(y_pred, y)
             sam = sam.compute().detach().item()
-
-            downsapled_color_error = F.mse_loss(y_pred, y_bicubic)
+            downsapled_color_error = F.mse_loss(F.interpolate(y_pred, size=(source.shape[2], source.shape[3]), mode='area'), source)
             bw_error = F.mse_loss(y_pred.mean(1, keepdim=True), y.mean(1, keepdim=True))
 
 

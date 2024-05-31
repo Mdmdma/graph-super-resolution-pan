@@ -17,7 +17,7 @@ from pan_additions.naive_upsampling import visualize_tensor, save_tensor_as_imag
 
 # Sample use python run_eval.py --checkpoint /scratch2/merler/pan/experiment_23/best_model.pth --dataset pan --data-dir /scratch2/merler/code/data --subset schweiz_random_200
 
-# Cluster use python run_eval.py --checkpoint /cluster/scratch/merler/code/saved_models_cluster_graph/pan/experiment_23/best_model.pth --dataset pan --data-dir /cluster/scratch/merler/data --subset schweiz_random_200
+# Cluster use python run_eval.py --checkpoint /cluster/scratch/merler/code/saved_models_cluster_graph/pan/experiment_0/best_model.pth --dataset pan --data-dir /cluster/scratch/merler/data --subset test --data_output_dir /cluster/scratch/merler/data/pan10/evaluation_results/test --crop-size 64 --training_mode graph    
 
 class Evaluator:
 
@@ -25,17 +25,11 @@ class Evaluator:
         self.args = args
 
         self.dataloader = self.get_dataloader(args)
-        print(repr(args.training_mode))
-        print(type(args.training_mode))
-        print('graph-plus')
-        print(str(args.training_mode)== 'graph-plus')
-        print(args.training_mode + ' graph-plus')
         if args.training_mode == 'w/o-graph':
             self.model = GraphSuperResolutionNet(args.scaling, args.crop_size, args.feature_extractor, True)
         elif args.training_mode == 'graph':
             self.model = GraphSuperResolutionNet_ex(args.scaling, args.crop_size, args.feature_extractor)
         elif args.training_mode == 'graph-plus':
-            print('somethid')
             self.model = GraphSuperResolutionNet_ex_plus(args.scaling, args.crop_size, args.feature_extractor)
         else:
             raise NotImplementedError(f'Training mode {args.training_mode}')
@@ -48,14 +42,26 @@ class Evaluator:
     def evaluate(self):
         test_stats = defaultdict(float)
         problemcounter = 0
+        counter = 0
         for sample in tqdm(self.dataloader, leave=False):
             sample = to_cuda(sample)
 
             output = self.model(sample)
 
             picture = output['y_pred']
+            #picture = sample['y']
             # visualize_tensor(picture, title='model_upsampling')
-            # save_tensor_as_image(picture, 'model_upsampling')
+            if counter < 8:
+                title = f"{'w_o_graph'} {args.scaling} {counter}"
+                #title = 'original'
+                save_tensor_as_image(picture, title=title)
+                
+            counter +=1
+            if counter == 9:  
+                exit()
+            
+
+            
 
 
             _, loss_dict = self.model.get_loss(output, sample)
@@ -80,11 +86,12 @@ class Evaluator:
             'do_horizontal_flip': False,
             'crop_valid': True,
             'crop_deterministic': True,
-            #'image_transform': Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             'scaling': args.scaling
         }
 
         if args.dataset == 'pan':
+            if args.crop_size == 64:
+                data_args['crop_deterministic'] = True # this is needed to keep the evaluation time resonable. 
             dataset = PanDataset(os.path.join(args.data_dir, 'pan10/images_processed/', args.subset), **data_args, split='test')
         else:
             raise NotImplementedError(f'Dataset {args.dataset}')
