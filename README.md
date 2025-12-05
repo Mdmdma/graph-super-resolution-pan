@@ -6,6 +6,8 @@ This is the official implementation of the Bachelor thesis:
 
 Mathis Erler, supervised by ALexander Becker, Konrad Schindler
 
+The full thesis can be found [here](Bachelorarbeit.pdf).
+
 As the whole thesis, also this code implementation is based on the original code of the paper "Learning Graph Regularisation for Guided Super-Resolution" by Riccardo de Lutio, Alexander Becker, Stefano D'Aronco, Stefania Russo, Jan D. Wegner, Konrad Schindler.
 **[[Paper]](https://arxiv.org/abs/2203.14297) &nbsp;|&nbsp; [[5 minute explainer video]](https://www.youtube.com/watch?v=ZFDErHUlCBE&ab_channel=RiccardodeLutio)**
 
